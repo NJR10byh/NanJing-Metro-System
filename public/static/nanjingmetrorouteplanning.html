@@ -1,0 +1,1941 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+      }
+      .line {
+        font-weight: 900;
+        color: black;
+        opacity: 1;
+      }
+      input {
+        padding: 3px;
+      }
+      input::-webkit-input-placeholder {
+        color: #bdc3c7;
+      }
+      button {
+        width: 70px;
+        height: 26px;
+        border: 0;
+        border-radius: 5px;
+        background: linear-gradient(-270deg, #ffcccc, #ff6b6b);
+        font-weight: 500;
+        color: black;
+      }
+      h3 {
+        color: red;
+      }
+      span {
+        opacity: 0.7;
+      }
+      #container {
+        display: flex;
+        flex-direction: column;
+        margin-top: 3px;
+      }
+      #info {
+        margin-top: 40px;
+      }
+    </style>
+    <script src="https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js"></script>
+  </head>
+  <body>
+    <div id="container">
+      <div style="position: fixed;background-color: #fff;">
+        <span class="line">起始站名: </span>
+        <input type="text" placeholder="请输入起始站名" id="start" />
+        <span class="line">目标站名: </span>
+        <input type="text" placeholder="请输入终点站名" id="end" />
+        <button onclick="search1()">最短路径</button>
+        <button onclick="search2()">最少换乘</button>
+        <button onclick="search3()" style="width: 140px;">
+          最少换乘+最短路径
+        </button>
+      </div>
+      <div id="info"></div>
+    </div>
+  </body>
+  <script>
+    //地铁线路无向连通图的领接矩阵
+    const map = [
+      [0, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+      [1, 0, 1, 1, 1, 0, 1, 0, 0, 0],
+      [1, 1, 0, 1, 0, 1, 1, 0, 1, 0],
+      [1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+      [1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+      [1, 0, 1, 0, 0, 0, 1, 1, 0, 1],
+      [1, 1, 1, 0, 0, 1, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+      [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+    ];
+    //换乘站信息
+    const Huan = [
+      [
+        "",
+        "新街口",
+        "南京站",
+        "鼓楼",
+        "安德门",
+        "南京南站",
+        "南京南站",
+        "",
+        "",
+        "",
+      ],
+      ["新街口", "", "大行宫", "金马路", "元通", "", "油坊桥", "", "", ""],
+      [
+        "南京站",
+        "大行宫",
+        "",
+        "鸡鸣寺",
+        "",
+        "南京南站",
+        "南京南站",
+        "",
+        "泰冯路",
+        "",
+      ],
+      ["鼓楼", "金马路", "鸡鸣寺", "", "", "", "", "", "", ""],
+      ["安德门", "元通", "", "", "", "", "", "", "", ""],
+      [
+        "南京南站",
+        "",
+        "南京南站",
+        "",
+        "",
+        "",
+        "南京南站",
+        "空港新城江宁",
+        "",
+        "翔宇路南",
+      ],
+      ["南京南站", "油坊桥", "南京南站", "", "", "南京南站", "", "", "", ""],
+      ["", "", "", "", "", "空港新城江宁", "", "", "", ""],
+      ["", "", "泰冯路", "", "", "", "", "", "", ""],
+      ["", "", "", "", "", "翔宇路南", "", "", "", ""],
+    ];
+    //各线路站点信息
+    const line1 = [
+      "迈皋桥",
+      "红山动物园",
+      "南京站",
+      "新模范马路",
+      "玄武门",
+      "鼓楼",
+      "珠江路",
+      "新街口",
+      "张府园",
+      "三山街",
+      "中华门",
+      "安德门",
+      "天隆寺",
+      "软件大道",
+      "花神庙",
+      "南京南站",
+      "双龙大道",
+      "河定桥",
+      "胜太路",
+      "百家湖",
+      "小龙湾",
+      "竹山路",
+      "天印大道",
+      "龙眠大道",
+      "南医大-江苏经贸学院",
+      "南京交院",
+      "中国药科大学",
+    ];
+    const line2 = [
+      "经天路",
+      "南大仙林校区",
+      "羊山公园",
+      "仙林中心",
+      "学则路",
+      "仙鹤门",
+      "金马路",
+      "马群",
+      "钟灵街",
+      "孝陵卫",
+      "下马坊",
+      "苜蓿园",
+      "明故宫",
+      "西安门",
+      "大行宫",
+      "新街口",
+      "上海路",
+      "汉中门",
+      "莫愁湖",
+      "云锦路",
+      "集庆门大街",
+      "兴隆大街",
+      "奥体东",
+      "元通",
+      "雨润大街",
+      "油坊桥",
+    ];
+    const line3 = [
+      "林场",
+      "星火路",
+      "东大成贤学院",
+      "泰冯路",
+      "天润城",
+      "柳洲东路",
+      "上元门",
+      "五塘广场",
+      "小市",
+      "南京站",
+      "南京林业大学-新庄",
+      "鸡鸣寺",
+      "浮桥",
+      "大行宫",
+      "常府街",
+      "夫子庙",
+      "武定门",
+      "雨花门",
+      "卡子门",
+      "大明路",
+      "明发广场",
+      "南京南站",
+      "宏远大道",
+      "胜太西路",
+      "天元西路",
+      "九龙湖",
+      "诚信大道",
+      "东大九龙湖校区",
+    ];
+    const line4 = [
+      "龙江",
+      "草场门-南艺-二师",
+      "云南路",
+      "鼓楼",
+      "鸡鸣寺",
+      "九华山",
+      "岗子村",
+      "蒋王庙",
+      "王家湾",
+      "聚宝山",
+      "徐庄-苏宁总部",
+      "金马路",
+      "汇通路",
+      "灵山",
+      "东流",
+      "孟北",
+      "西岗桦墅",
+      "仙林湖",
+    ];
+    const line10 = [
+      "安德门",
+      "小行",
+      "中胜",
+      "元通",
+      "奥体中心",
+      "梦都大街",
+      "绿博园",
+      "江心洲",
+      "临江-青奥体育馆",
+      "浦口万汇城",
+      "南京工业大学",
+      "龙华路",
+      "文德路",
+      "雨山路",
+    ];
+    const lines1 = [
+      "南京南站",
+      "翠屏山",
+      "河海大学-佛城西路",
+      "吉印大道",
+      "正方中路",
+      "翔宇路北",
+      "翔宇路南",
+      "禄口机场",
+      "空港新城江宁",
+      ,
+    ];
+    const lines3 = [
+      "南京南站",
+      "景明佳园",
+      "铁心桥",
+      "春江路",
+      "贾西",
+      "油坊桥",
+      "永初路",
+      "平良大街",
+      "吴侯街",
+      "高庙路",
+      "天保",
+      "刘村",
+      "马骡圩",
+      "兰花塘",
+      "双垅",
+      "石碛河",
+      "桥林新城",
+      "林山",
+      "高家冲",
+    ];
+    const lines7 = [
+      "空港新城江宁",
+      "柘塘",
+      "空港新城溧水",
+      "群力",
+      "卧龙湖",
+      "溧水",
+      "中山湖",
+      "幸庄",
+      "无想山",
+    ];
+    const lines8 = [
+      "泰山新村",
+      "泰冯路",
+      "高新开发区",
+      "信息工程大学",
+      "卸甲甸",
+      "大厂",
+      "葛塘",
+      "长芦",
+      "化工园",
+      "六合开发区",
+      "龙池",
+      "雄州",
+      "凤凰山公园",
+      "方州广场",
+      "沈桥",
+      "八百桥",
+      "金牛湖",
+    ];
+    const lines9 = ["翔宇路南", "铜山", "石湫", "明觉", "团结圩", "高淳"];
+    var result = [];
+    var begin = [];
+    var terminal = [];
+    var Info = document.getElementById("info");
+    var flag = true;
+    var huancheng = []; //换乘总路线
+    var minhuancheng = []; //换乘最少路线，更新
+    var minhuanchengs = []; //换乘最少路线们，更新
+    var huancheng1 = [];
+    var shortest = 0;
+    var shortestline = [];
+    var shortpath = [];
+    var njr = 9999;
+    var mask0 = true;
+    var mask1 = true;
+    var mask2 = true;
+    var mask3 = true;
+    var mask4 = true;
+    var mask5 = true;
+    var mask6 = true;
+    var mask7 = true;
+    var mask8 = true;
+    var mask9 = true;
+
+    /* 最短路径 */
+    function search1() {
+      result = [];
+      begin = [];
+      terminal = [];
+      huancheng = [];
+      minhuancheng = [];
+      minhuanchengs = [];
+      huancheng1 = [];
+      shortestline = [];
+      shortpath = [];
+      shortest = 0;
+      njr = 9999;
+      flag = true;
+      if (
+        document.getElementById("start").value == "" ||
+        document.getElementById("end").value == ""
+      ) {
+        alert("请将起始站点与目标站点输入完整!!!");
+      } else {
+        $("#info").attr("style", "opacity:0;transition:0.5s");
+        var timer = setInterval(() => {
+          if ($("#info").css("opacity") == 0) {
+            $("#info")
+              .children()
+              .remove();
+            $("#info").append("<h3>" + "所有换乘路线: " + "</h3><br />");
+            begin = searchstation(document.getElementById("start").value);
+            terminal = searchstation(document.getElementById("end").value);
+            for (let t = 0; t < begin.length; t++) {
+              start = begin[t];
+              switch (start) {
+                case "1":
+                  start = 0;
+                  break;
+                case "2":
+                  start = 1;
+                  break;
+                case "3":
+                  start = 2;
+                  break;
+                case "4":
+                  start = 3;
+                  break;
+                case "5":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "6":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "7":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "8":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "9":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "10":
+                  start = 4;
+                  break;
+                case "s1":
+                  start = 5;
+                  break;
+                case "s3":
+                  start = 6;
+                  break;
+                case "s7":
+                  start = 7;
+                  break;
+                case "s8":
+                  start = 8;
+                  break;
+                case "s9":
+                  start = 9;
+                  break;
+              }
+              for (let q = 0; q < terminal.length; q++) {
+                end = terminal[q];
+                flag = true;
+                switch (end) {
+                  case "1":
+                    end = 0;
+                    break;
+                  case "2":
+                    end = 1;
+                    break;
+                  case "3":
+                    end = 2;
+                    break;
+                  case "4":
+                    end = 3;
+                    break;
+                  case "5":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "6":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "7":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "8":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "9":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "10":
+                    end = 4;
+                    break;
+                  case "s1":
+                    end = 5;
+                    break;
+                  case "s3":
+                    end = 6;
+                    break;
+                  case "s7":
+                    end = 7;
+                    break;
+                  case "s8":
+                    end = 8;
+                    break;
+                  case "s9":
+                    end = 9;
+                    break;
+                }
+                dfsManager1(map, start, end);
+                var short = 9999;
+                for (var i = 0; i < shortestline.length; i++) {
+                  if (short > shortestline[i]) {
+                    short = shortestline[i];
+                  }
+                }
+                $("#info").append("<h3>最短路径: " + short + " 站</h3>");
+                zuiduan();
+              }
+              $("#info").attr("style", "opacity:1;transition:1s");
+            }
+            clearInterval(timer);
+          }
+        }, 100);
+      }
+    }
+    function dfsManager1(map, start, end) {
+      var min = 99999,
+        path = [],
+        unvisited = [];
+      for (let i = 0; i < 10; i++) {
+        unvisited[i] = true;
+      }
+      var Start = start;
+      (function dfs(map, start, end, step) {
+        //unvisited[start] = false //不重复访问最后的节点
+        if (start === end) {
+          $("#info").append(
+            "<span>" + "换乘次数: " + step + " 次" + "</span><br />"
+          );
+          if (flag) {
+            if (Start >= 0) {
+              if (Start <= 3) {
+                Start += 1;
+                Start = Start + "";
+                flag = false;
+              }
+              if (Start >= 4) {
+                switch (Start) {
+                  case 4:
+                    Start = "10";
+                    flag = false;
+                    break;
+                  case 5:
+                    Start = "s1";
+                    flag = false;
+                    break;
+                  case 6:
+                    Start = "s3";
+                    flag = false;
+                    break;
+                  case 7:
+                    Start = "s7";
+                    flag = false;
+                    break;
+                  case 8:
+                    Start = "s8";
+                    flag = false;
+                    break;
+                  case 9:
+                    Start = "s9";
+                    flag = false;
+                    break;
+                }
+              }
+            }
+          }
+          $("#info").append("<span>" + Start + "号线->" + "</span>");
+          huancheng.push(Start);
+          for (let i = 0; i < path.length; i++) {
+            if (path[i] >= 0) {
+              if (path[i] <= 3) {
+                $("#info").append(
+                  "<span>" + (path[i] + 1 + "") + "号线-></span>"
+                );
+                huancheng.push(path[i] + 1 + "");
+              }
+              if (path[i] >= 4) {
+                switch (path[i]) {
+                  case 4:
+                    $("#info").append("<span>10号线-></span>");
+                    huancheng.push("10");
+                    break;
+                  case 5:
+                    $("#info").append("<span>s1号线-></span>");
+                    huancheng.push("s1");
+                    break;
+                  case 6:
+                    $("#info").append("<span>s3号线-></span>");
+                    huancheng.push("s3");
+                    break;
+                  case 7:
+                    $("#info").append("<span>s7号线-></span>");
+                    huancheng.push("s7");
+                    break;
+                  case 8:
+                    $("#info").append("<span>s8号线-></span>");
+                    huancheng.push("s8");
+                    break;
+                  case 9:
+                    $("#info").append("<span>s9号线-></span>");
+                    huancheng.push("s9");
+                    break;
+                }
+              }
+            }
+          }
+          $("#info").append("<br />");
+          Huanchengshortest();
+          huancheng = [];
+          return;
+        }
+        unvisited[start] = false; //重复访问最后的节点
+        for (let i = 0; i < map.length; i++) {
+          if (map[start][i] === 1 && unvisited[i]) {
+            path.push(i); //记录路径
+            dfs(map, i, end, step + 1);
+            path.pop(); //避免污染其他路径
+          }
+        }
+        unvisited[start] = true; //所有子节点访问完毕后，释放此节点的标记
+      })(map, start, end, 0);
+
+      return min;
+    }
+    //输出站点名称
+    function Huanchengshortest() {
+      var now = "";
+      var next = "";
+      var huanchengname = [];
+      huanchengname.push(document.getElementById("start").value);
+      chargemask(minhuancheng[0]);
+      for (var i = 0; i < huancheng.length - 1; i++) {
+        switch (huancheng[i]) {
+          case "1":
+            now = 0;
+            break;
+          case "2":
+            now = 1;
+            break;
+          case "3":
+            now = 2;
+            break;
+          case "4":
+            now = 3;
+            break;
+          case "10":
+            now = 4;
+            break;
+          case "s1":
+            now = 5;
+            break;
+          case "s3":
+            now = 6;
+            break;
+          case "s7":
+            now = 7;
+            break;
+          case "s8":
+            now = 8;
+            break;
+          case "s9":
+            now = 9;
+            break;
+        }
+        switch (huancheng[i + 1]) {
+          case "1":
+            next = 0;
+            break;
+          case "2":
+            next = 1;
+            break;
+          case "3":
+            next = 2;
+            break;
+          case "4":
+            next = 3;
+            break;
+          case "10":
+            next = 4;
+            break;
+          case "s1":
+            next = 5;
+            break;
+          case "s3":
+            next = 6;
+            break;
+          case "s7":
+            next = 7;
+            break;
+          case "s8":
+            next = 8;
+            break;
+          case "s9":
+            next = 9;
+            break;
+        }
+        huanchengname.push(Huan[now][next]);
+      }
+      $("#info").append("<h4>换乘路线: </h4>");
+      for (var i = 0; i < huancheng.length - 1; i++) {
+        chargemask(huancheng[i]);
+        shortest += Math.abs(
+          huanchengstation(huanchengname[i + 1]) * 1 -
+            huanchengstation(huanchengname[i]) * 1
+        );
+        $("#info").append(
+          "<span>" +
+            huancheng[i] +
+            "号线坐" +
+            Math.abs(
+              huanchengstation(huanchengname[i + 1]) * 1 -
+                huanchengstation(huanchengname[i]) * 1
+            ) +
+            "站-></span>"
+        );
+      }
+      chargemask(huancheng[huancheng.length - 1]);
+      shortest += Math.abs(
+        huanchengstation(document.getElementById("end").value) * 1 -
+          huanchengstation(huanchengname[huanchengname.length - 1]) * 1
+      );
+      $("#info").append(
+        "<span>" +
+          huancheng[huancheng.length - 1] +
+          "号线坐" +
+          Math.abs(
+            huanchengstation(document.getElementById("end").value) * 1 -
+              huanchengstation(huanchengname[huanchengname.length - 1]) * 1
+          ) +
+          "站->到达终点</h5>"
+      );
+      $("#info").append("<br /><span>一共" + shortest + "站</span>");
+      $("#info").append("<br /><br />");
+      if (njr > shortest) {
+        njr = shortest;
+        shortpath = huancheng;
+      }
+      shortestline.push(shortest);
+      shortest = 0;
+    }
+    function zuiduan() {
+      var now = "";
+      var next = "";
+      var huanchengname = [];
+      huanchengname.push(document.getElementById("start").value);
+      chargemask(shortpath[0]);
+      for (var i = 0; i < shortpath.length - 1; i++) {
+        switch (shortpath[i]) {
+          case "1":
+            now = 0;
+            break;
+          case "2":
+            now = 1;
+            break;
+          case "3":
+            now = 2;
+            break;
+          case "4":
+            now = 3;
+            break;
+          case "10":
+            now = 4;
+            break;
+          case "s1":
+            now = 5;
+            break;
+          case "s3":
+            now = 6;
+            break;
+          case "s7":
+            now = 7;
+            break;
+          case "s8":
+            now = 8;
+            break;
+          case "s9":
+            now = 9;
+            break;
+        }
+        switch (shortpath[i + 1]) {
+          case "1":
+            next = 0;
+            break;
+          case "2":
+            next = 1;
+            break;
+          case "3":
+            next = 2;
+            break;
+          case "4":
+            next = 3;
+            break;
+          case "10":
+            next = 4;
+            break;
+          case "s1":
+            next = 5;
+            break;
+          case "s3":
+            next = 6;
+            break;
+          case "s7":
+            next = 7;
+            break;
+          case "s8":
+            next = 8;
+            break;
+          case "s9":
+            next = 9;
+            break;
+        }
+        huanchengname.push(Huan[now][next]);
+      }
+      $("#info").append("<h4>换乘路线: </h4>");
+      for (var i = 0; i < shortpath.length - 1; i++) {
+        chargemask(shortpath[i]);
+        shortest += Math.abs(
+          huanchengstation(huanchengname[i + 1]) * 1 -
+            huanchengstation(huanchengname[i]) * 1
+        );
+        $("#info").append(
+          "<span>" +
+            shortpath[i] +
+            "号线坐" +
+            Math.abs(
+              huanchengstation(huanchengname[i + 1]) * 1 -
+                huanchengstation(huanchengname[i]) * 1
+            ) +
+            "站-></span>"
+        );
+      }
+      chargemask(shortpath[shortpath.length - 1]);
+      shortest += Math.abs(
+        huanchengstation(document.getElementById("end").value) * 1 -
+          huanchengstation(huanchengname[huanchengname.length - 1]) * 1
+      );
+      $("#info").append(
+        "<span>" +
+          shortpath[shortpath.length - 1] +
+          "号线坐" +
+          Math.abs(
+            huanchengstation(document.getElementById("end").value) * 1 -
+              huanchengstation(huanchengname[huanchengname.length - 1]) * 1
+          ) +
+          "站->到达终点</h5><br /><br /><h4>-----------------------------------------</h4><br />"
+      );
+    }
+
+    /* 最少换乘 */
+    function search2() {
+      result = [];
+      begin = [];
+      terminal = [];
+      huancheng = [];
+      minhuancheng = [];
+      minhuanchengs = [];
+      huancheng1 = [];
+      shortestline = [];
+      shortpath = [];
+      shortest = 0;
+      njr = 9999;
+      flag = true;
+      if (
+        document.getElementById("start").value == "" ||
+        document.getElementById("end").value == ""
+      ) {
+        alert("请将起始站点与目标站点输入完整!!!");
+      } else {
+        $("#info").attr("style", "opacity:0;transition:0.5s");
+        var timer = setInterval(() => {
+          if ($("#info").css("opacity") == 0) {
+            $("#info")
+              .children()
+              .remove();
+            $("#info").append("<h3>" + "所有换乘路线: " + "</h3><br />");
+            begin = searchstation(document.getElementById("start").value);
+            terminal = searchstation(document.getElementById("end").value);
+            for (let t = 0; t < begin.length; t++) {
+              start = begin[t];
+              switch (start) {
+                case "1":
+                  start = 0;
+                  break;
+                case "2":
+                  start = 1;
+                  break;
+                case "3":
+                  start = 2;
+                  break;
+                case "4":
+                  start = 3;
+                  break;
+                case "5":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "6":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "7":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "8":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "9":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "10":
+                  start = 4;
+                  break;
+                case "s1":
+                  start = 5;
+                  break;
+                case "s3":
+                  start = 6;
+                  break;
+                case "s7":
+                  start = 7;
+                  break;
+                case "s8":
+                  start = 8;
+                  break;
+                case "s9":
+                  start = 9;
+                  break;
+              }
+              for (let q = 0; q < terminal.length; q++) {
+                end = terminal[q];
+                flag = true;
+                switch (end) {
+                  case "1":
+                    end = 0;
+                    break;
+                  case "2":
+                    end = 1;
+                    break;
+                  case "3":
+                    end = 2;
+                    break;
+                  case "4":
+                    end = 3;
+                    break;
+                  case "5":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "6":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "7":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "8":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "9":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "10":
+                    end = 4;
+                    break;
+                  case "s1":
+                    end = 5;
+                    break;
+                  case "s3":
+                    end = 6;
+                    break;
+                  case "s7":
+                    end = 7;
+                    break;
+                  case "s8":
+                    end = 8;
+                    break;
+                  case "s9":
+                    end = 9;
+                    break;
+                }
+                $("#info").append(
+                  "<br /><h3>最短换乘: " +
+                    dfsManager2(map, start, end) +
+                    " 次</h3>"
+                );
+                Huancheng();
+              }
+              $("#info").attr("style", "opacity:1;transition:1s");
+            }
+            clearInterval(timer);
+          }
+        }, 100);
+      }
+    }
+    function dfsManager2(map, start, end) {
+      var min = 99999,
+        path = [],
+        unvisited = [];
+      for (let i = 0; i < 10; i++) {
+        unvisited[i] = true;
+      }
+      var Start = start;
+      (function dfs(map, start, end, step) {
+        //unvisited[start] = false //不重复访问最后的节点
+        if (start === end) {
+          $("#info").append(
+            "<span>" + "换乘次数: " + step + " 次" + "</span><br />"
+          );
+          if (flag) {
+            if (Start >= 0) {
+              if (Start <= 3) {
+                Start += 1;
+                Start = Start + "";
+                flag = false;
+              }
+              if (Start >= 4) {
+                switch (Start) {
+                  case 4:
+                    Start = "10";
+                    flag = false;
+                    break;
+                  case 5:
+                    Start = "s1";
+                    flag = false;
+                    break;
+                  case 6:
+                    Start = "s3";
+                    flag = false;
+                    break;
+                  case 7:
+                    Start = "s7";
+                    flag = false;
+                    break;
+                  case 8:
+                    Start = "s8";
+                    flag = false;
+                    break;
+                  case 9:
+                    Start = "s9";
+                    flag = false;
+                    break;
+                }
+              }
+            }
+          }
+          $("#info").append("<span>" + Start + "号线->" + "</span>");
+          huancheng.push(Start);
+          for (let i = 0; i < path.length; i++) {
+            if (path[i] >= 0) {
+              if (path[i] <= 3) {
+                $("#info").append(
+                  "<span>" + (path[i] + 1 + "") + "号线-></span>"
+                );
+                huancheng.push(path[i] + 1 + "");
+              }
+              if (path[i] >= 4) {
+                switch (path[i]) {
+                  case 4:
+                    $("#info").append("<span>10号线-></span>");
+                    huancheng.push("10");
+                    break;
+                  case 5:
+                    $("#info").append("<span>s1号线-></span>");
+                    huancheng.push("s1");
+                    break;
+                  case 6:
+                    $("#info").append("<span>s3号线-></span>");
+                    huancheng.push("s3");
+                    break;
+                  case 7:
+                    $("#info").append("<span>s7号线-></span>");
+                    huancheng.push("s7");
+                    break;
+                  case 8:
+                    $("#info").append("<span>s8号线-></span>");
+                    huancheng.push("s8");
+                    break;
+                  case 9:
+                    $("#info").append("<span>s9号线-></span>");
+                    huancheng.push("s9");
+                    break;
+                }
+              }
+            }
+          }
+          $("#info").append("<br />");
+          if (min > step) {
+            min = step;
+            minhuancheng = huancheng;
+            huancheng = [];
+          } else {
+            huancheng = [];
+          }
+          return;
+        }
+        unvisited[start] = false; //重复访问最后的节点
+        for (let i = 0; i < map.length; i++) {
+          if (map[start][i] === 1 && unvisited[i]) {
+            path.push(i); //记录路径
+            dfs(map, i, end, step + 1);
+            path.pop(); //避免污染其他路径
+          }
+        }
+        unvisited[start] = true; //所有子节点访问完毕后，释放此节点的标记
+      })(map, start, end, 0);
+
+      return min;
+    }
+    function Huancheng() {
+      var now = "";
+      var next = "";
+      var huanchengname = [];
+      huanchengname.push(document.getElementById("start").value);
+      chargemask(minhuancheng[0]);
+      for (var i = 0; i < minhuancheng.length - 1; i++) {
+        switch (minhuancheng[i]) {
+          case "1":
+            now = 0;
+            break;
+          case "2":
+            now = 1;
+            break;
+          case "3":
+            now = 2;
+            break;
+          case "4":
+            now = 3;
+            break;
+          case "10":
+            now = 4;
+            break;
+          case "s1":
+            now = 5;
+            break;
+          case "s3":
+            now = 6;
+            break;
+          case "s7":
+            now = 7;
+            break;
+          case "s8":
+            now = 8;
+            break;
+          case "s9":
+            now = 9;
+            break;
+        }
+        switch (minhuancheng[i + 1]) {
+          case "1":
+            next = 0;
+            break;
+          case "2":
+            next = 1;
+            break;
+          case "3":
+            next = 2;
+            break;
+          case "4":
+            next = 3;
+            break;
+          case "10":
+            next = 4;
+            break;
+          case "s1":
+            next = 5;
+            break;
+          case "s3":
+            next = 6;
+            break;
+          case "s7":
+            next = 7;
+            break;
+          case "s8":
+            next = 8;
+            break;
+          case "s9":
+            next = 9;
+            break;
+        }
+        huanchengname.push(Huan[now][next]);
+      }
+      $("#info").append("<h4>换乘路线: </h4>");
+      for (var i = 0; i < minhuancheng.length - 1; i++) {
+        chargemask(minhuancheng[i]);
+        $("#info").append(
+          "<span>" +
+            minhuancheng[i] +
+            "号线坐" +
+            Math.abs(
+              huanchengstation(huanchengname[i + 1]) * 1 -
+                huanchengstation(huanchengname[i]) * 1
+            ) +
+            "站-></span>"
+        );
+      }
+      chargemask(minhuancheng[minhuancheng.length - 1]);
+      $("#info").append(
+        "<span>" +
+          minhuancheng[minhuancheng.length - 1] +
+          "号线坐" +
+          Math.abs(
+            huanchengstation(document.getElementById("end").value) * 1 -
+              huanchengstation(huanchengname[huanchengname.length - 1]) * 1
+          ) +
+          "站->到达终点</h5>"
+      );
+      $("#info").append("<br /><br />");
+    }
+
+    /* 最少换乘+最短路径 */
+    function search3() {
+      result = [];
+      begin = [];
+      terminal = [];
+      huancheng = [];
+      minhuancheng = [];
+      minhuanchengs = [];
+      huancheng1 = [];
+      shortestline = [];
+      shortpath = [];
+      shortest = 0;
+      njr = 9999;
+      flag = true;
+      if (
+        document.getElementById("start").value == "" ||
+        document.getElementById("end").value == ""
+      ) {
+        alert("请将起始站点与目标站点输入完整!!!");
+      } else {
+        $("#info").attr("style", "opacity:0;transition:0.5s");
+        var timer = setInterval(() => {
+          if ($("#info").css("opacity") == 0) {
+            $("#info")
+              .children()
+              .remove();
+            $("#info").append("<h3>" + "所有换乘路线: " + "</h3><br />");
+            begin = searchstation(document.getElementById("start").value);
+            terminal = searchstation(document.getElementById("end").value);
+            for (let t = 0; t < begin.length; t++) {
+              start = begin[t];
+              switch (start) {
+                case "1":
+                  start = 0;
+                  break;
+                case "2":
+                  start = 1;
+                  break;
+                case "3":
+                  start = 2;
+                  break;
+                case "4":
+                  start = 3;
+                  break;
+                case "5":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "6":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "7":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "8":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "9":
+                  alert("没有此线路，请重新选择起始线路");
+                  break;
+                case "10":
+                  start = 4;
+                  break;
+                case "s1":
+                  start = 5;
+                  break;
+                case "s3":
+                  start = 6;
+                  break;
+                case "s7":
+                  start = 7;
+                  break;
+                case "s8":
+                  start = 8;
+                  break;
+                case "s9":
+                  start = 9;
+                  break;
+              }
+              for (let q = 0; q < terminal.length; q++) {
+                end = terminal[q];
+                flag = true;
+                switch (end) {
+                  case "1":
+                    end = 0;
+                    break;
+                  case "2":
+                    end = 1;
+                    break;
+                  case "3":
+                    end = 2;
+                    break;
+                  case "4":
+                    end = 3;
+                    break;
+                  case "5":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "6":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "7":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "8":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "9":
+                    alert("没有此线路，请重新选择目标线路");
+                    break;
+                  case "10":
+                    end = 4;
+                    break;
+                  case "s1":
+                    end = 5;
+                    break;
+                  case "s3":
+                    end = 6;
+                    break;
+                  case "s7":
+                    end = 7;
+                    break;
+                  case "s8":
+                    end = 8;
+                    break;
+                  case "s9":
+                    end = 9;
+                    break;
+                }
+                $("#info").append(
+                  "<br /><h3>最少换乘: " +
+                    dfsManager3(map, start, end) +
+                    " 次</h3>"
+                );
+                HuanchengPro();
+              }
+              $("#info").attr("style", "opacity:1;transition:1s;");
+            }
+            clearInterval(timer);
+          }
+        }, 100);
+      }
+    }
+    function dfsManager3(map, start, end) {
+      var min = 99999,
+        path = [],
+        unvisited = [];
+      for (let i = 0; i < 10; i++) {
+        unvisited[i] = true;
+      }
+      var Start = start;
+      (function dfs(map, start, end, step) {
+        //unvisited[start] = false //不重复访问最后的节点
+        if (start === end) {
+          $("#info").append(
+            "<span>" + "换乘次数: " + step + " 次" + "</span><br />"
+          );
+          if (flag) {
+            if (Start >= 0) {
+              if (Start <= 3) {
+                Start += 1;
+                Start = Start + "";
+                flag = false;
+              }
+              if (Start >= 4) {
+                switch (Start) {
+                  case 4:
+                    Start = "10";
+                    flag = false;
+                    break;
+                  case 5:
+                    Start = "s1";
+                    flag = false;
+                    break;
+                  case 6:
+                    Start = "s3";
+                    flag = false;
+                    break;
+                  case 7:
+                    Start = "s7";
+                    flag = false;
+                    break;
+                  case 8:
+                    Start = "s8";
+                    flag = false;
+                    break;
+                  case 9:
+                    Start = "s9";
+                    flag = false;
+                    break;
+                }
+              }
+            }
+          }
+          $("#info").append("<span>" + Start + "号线->" + "</span>");
+          huancheng.push(Start);
+          for (let i = 0; i < path.length; i++) {
+            if (path[i] >= 0) {
+              if (path[i] <= 3) {
+                $("#info").append(
+                  "<span>" + (path[i] + 1 + "") + "号线-></span>"
+                );
+                huancheng.push(path[i] + 1 + "");
+              }
+              if (path[i] >= 4) {
+                switch (path[i]) {
+                  case 4:
+                    $("#info").append("<span>10号线-></span>");
+                    huancheng.push("10");
+                    break;
+                  case 5:
+                    $("#info").append("<span>s1号线-></span>");
+                    huancheng.push("s1");
+                    break;
+                  case 6:
+                    $("#info").append("<span>s3号线-></span>");
+                    huancheng.push("s3");
+                    break;
+                  case 7:
+                    $("#info").append("<span>s7号线-></span>");
+                    huancheng.push("s7");
+                    break;
+                  case 8:
+                    $("#info").append("<span>s8号线-></span>");
+                    huancheng.push("s8");
+                    break;
+                  case 9:
+                    $("#info").append("<span>s9号线-></span>");
+                    huancheng.push("s9");
+                    break;
+                }
+              }
+            }
+          }
+          $("#info").append("<br />");
+          if (min >= step) {
+            if (min > step) {
+              minhuanchengs = [];
+              min = step;
+              minhuanchengs.push(huancheng);
+              huancheng = [];
+            } else {
+              minhuanchengs.push(huancheng);
+              huancheng = [];
+            }
+          } else {
+            huancheng = [];
+          }
+          return;
+        }
+        unvisited[start] = false; //重复访问最后的节点
+        for (let i = 0; i < map.length; i++) {
+          if (map[start][i] === 1 && unvisited[i]) {
+            path.push(i); //记录路径
+            dfs(map, i, end, step + 1);
+            path.pop(); //避免污染其他路径
+          }
+        }
+        unvisited[start] = true; //所有子节点访问完毕后，释放此节点的标记
+      })(map, start, end, 0);
+
+      return min;
+    }
+    function HuanchengPro() {
+      var now = "";
+      var next = "";
+      var huanchengname = [];
+      var stationnum = 0;
+      $("#info").append("<h4>最短路径: </h4>");
+      console.log(minhuanchengs.length);
+      console.log(minhuanchengs);
+      for (var i = 0; i < minhuanchengs.length; i++) {
+        stationnum = 0;
+        huanchengname = [];
+        huanchengname.push(document.getElementById("start").value);
+        console.log(minhuanchengs[i].length);
+        if (minhuanchengs[i].length > 1) {
+          chargemask(minhuanchengs[i][0]);
+          for (var j = 0; j < minhuanchengs[i].length - 1; j++) {
+            switch (minhuanchengs[i][j]) {
+              case "1":
+                now = 0;
+                break;
+              case "2":
+                now = 1;
+                break;
+              case "3":
+                now = 2;
+                break;
+              case "4":
+                now = 3;
+                break;
+              case "10":
+                now = 4;
+                break;
+              case "s1":
+                now = 5;
+                break;
+              case "s3":
+                now = 6;
+                break;
+              case "s7":
+                now = 7;
+                break;
+              case "s8":
+                now = 8;
+                break;
+              case "s9":
+                now = 9;
+                break;
+            }
+            switch (minhuanchengs[i][j + 1]) {
+              case "1":
+                next = 0;
+                break;
+              case "2":
+                next = 1;
+                break;
+              case "3":
+                next = 2;
+                break;
+              case "4":
+                next = 3;
+                break;
+              case "10":
+                next = 4;
+                break;
+              case "s1":
+                next = 5;
+                break;
+              case "s3":
+                next = 6;
+                break;
+              case "s7":
+                next = 7;
+                break;
+              case "s8":
+                next = 8;
+                break;
+              case "s9":
+                next = 9;
+                break;
+            }
+            huanchengname.push(Huan[now][next]);
+            chargemask(minhuanchengs[i][j]);
+            stationnum += Math.abs(
+              huanchengstation(huanchengname[1]) * 1 -
+                huanchengstation(huanchengname[0]) * 1
+            );
+            $("#info").append(
+              "<span>" +
+                minhuanchengs[i][j] +
+                "号线坐" +
+                Math.abs(
+                  huanchengstation(huanchengname[1]) * 1 -
+                    huanchengstation(huanchengname[0]) * 1
+                ) +
+                "站-></span>"
+            );
+            huanchengname.shift();
+          }
+          huanchengname = [];
+          chargemask(minhuanchengs[i][minhuanchengs[i].length - 1]);
+          switch (minhuanchengs[i][minhuanchengs[i].length - 2]) {
+            case "1":
+              now = 0;
+              break;
+            case "2":
+              now = 1;
+              break;
+            case "3":
+              now = 2;
+              break;
+            case "4":
+              now = 3;
+              break;
+            case "10":
+              now = 4;
+              break;
+            case "s1":
+              now = 5;
+              break;
+            case "s3":
+              now = 6;
+              break;
+            case "s7":
+              now = 7;
+              break;
+            case "s8":
+              now = 8;
+              break;
+            case "s9":
+              now = 9;
+              break;
+          }
+          switch (minhuanchengs[i][minhuanchengs[i].length - 1]) {
+            case "1":
+              next = 0;
+              break;
+            case "2":
+              next = 1;
+              break;
+            case "3":
+              next = 2;
+              break;
+            case "4":
+              next = 3;
+              break;
+            case "10":
+              next = 4;
+              break;
+            case "s1":
+              next = 5;
+              break;
+            case "s3":
+              next = 6;
+              break;
+            case "s7":
+              next = 7;
+              break;
+            case "s8":
+              next = 8;
+              break;
+            case "s9":
+              next = 9;
+              break;
+          }
+          console.log("now: " + now);
+          console.log("next: " + next);
+          huanchengname.push(Huan[now][next]);
+          stationnum += Math.abs(
+            huanchengstation(document.getElementById("end").value) * 1 -
+              huanchengstation(huanchengname[0]) * 1
+          );
+          $("#info").append(
+            "<span>" +
+              minhuanchengs[i][minhuanchengs[i].length - 1] +
+              "号线坐" +
+              Math.abs(
+                huanchengstation(document.getElementById("end").value) * 1 -
+                  huanchengstation(huanchengname[0]) * 1
+              ) +
+              "站->到达终点</h5>"
+          );
+          $("#info").append("<h4>途径: " + stationnum + " 站</h4>");
+          $("#info").append("<br />");
+        } else if (minhuanchengs[i].length == 1) {
+          stationnum = 0;
+          stationnum += Math.abs(
+            huanchengstation(document.getElementById("end").value) * 1 -
+              huanchengstation(document.getElementById("start").value) * 1
+          );
+          $("#info").append(
+            "<span>" +
+              minhuanchengs[i][0] +
+              "号线坐" +
+              Math.abs(
+                huanchengstation(document.getElementById("end").value) * 1 -
+                  huanchengstation(document.getElementById("start").value) * 1
+              ) +
+              "站->到达终点</h5>"
+          );
+          $("#info").append("<h4>途径: " + stationnum + " 站</h4>");
+          $("#info").append("<br />");
+        }
+      }
+    }
+
+    //判断输入站点在几号线上
+    function searchstation(station) {
+      result = [];
+      for (var a = 0; a < 10; a++) {
+        if (a == 0) {
+          for (var i = 0; i < line1.length; i++) {
+            if (station === line1[i]) {
+              //alert("在 " + 1 + " 号线, " + "第 " + (i + 1) + " 站");
+              result.push("1");
+            }
+          }
+        }
+        if (a == 1) {
+          for (var i = 0; i < line2.length; i++) {
+            if (station === line2[i]) {
+              //alert("在 " + 2 + " 号线, " + "第 " + (i + 1) + " 站");
+              result.push("2");
+            }
+          }
+        }
+        if (a == 2) {
+          for (var i = 0; i < line3.length; i++) {
+            if (station === line3[i]) {
+              //alert("在 " + 3 + " 号线, " + "第 " + (i + 1) + " 站");
+              result.push("3");
+            }
+          }
+        }
+        if (a == 3) {
+          for (var i = 0; i < line4.length; i++) {
+            if (station === line4[i]) {
+              //alert("在 " + 4 + " 号线, " + "第 " + (i + 1) + " 站");
+              result.push("4");
+            }
+          }
+        }
+        if (a == 4) {
+          for (var i = 0; i < line10.length; i++) {
+            if (station === line10[i]) {
+              //alert("在 " + 10 + " 号线, " + "第 " + (i + 1) + " 站");
+              result.push("10");
+            }
+          }
+        }
+        if (a == 5) {
+          for (var i = 0; i < lines1.length; i++) {
+            if (station === lines1[i]) {
+              //alert("在 " + "s1" + " 号线, " + "第 " + (i + 1) + " 站");
+              result.push("s1");
+            }
+          }
+        }
+        if (a == 6) {
+          for (var i = 0; i < lines3.length; i++) {
+            if (station === lines3[i]) {
+              //alert("在 " + "s3" + " 号线, " + "第 " + (i + 1) + " 站");
+              result.push("s3");
+            }
+          }
+        }
+        if (a == 7) {
+          for (var i = 0; i < lines7.length; i++) {
+            if (station === lines7[i]) {
+              //alert("在 " + "s7" + " 号线, " + "第 " + (i + 1) + " 站");
+              result.push("s7");
+            }
+          }
+        }
+        if (a == 8) {
+          for (var i = 0; i < lines8.length; i++) {
+            if (station === lines8[i]) {
+              //alert("在 " + "s8" + " 号线, " + "第 " + (i + 1) + " 站");
+              result.push("s8");
+            }
+          }
+        }
+        if (a == 9) {
+          for (var i = 0; i < lines9.length; i++) {
+            if (station === lines9[i]) {
+              //alert("在 " + "s9" + " 号线, " + "第 " + (i + 1) + " 站");
+              result.push("s9");
+            }
+          }
+        }
+      }
+      return result;
+    }
+
+    //返回站点在该条线路的第几站
+    function huanchengstation(station) {
+      for (var a = 0; a < 10; a++) {
+        if (a == 0 && mask0) {
+          for (var i = 0; i < line1.length; i++) {
+            if (station === line1[i]) {
+              //alert("在 " + 1 + " 号线, " + "第 " + (i + 1) + " 站");
+              return i + 1;
+            }
+          }
+        }
+        if (a == 1 && mask1) {
+          for (var i = 0; i < line2.length; i++) {
+            if (station === line2[i]) {
+              //alert("在 " + 2 + " 号线, " + "第 " + (i + 1) + " 站");
+              return i + 1;
+            }
+          }
+        }
+        if (a == 2 && mask2) {
+          for (var i = 0; i < line3.length; i++) {
+            if (station === line3[i]) {
+              //alert("在 " + 3 + " 号线, " + "第 " + (i + 1) + " 站");
+              return i + 1;
+            }
+          }
+        }
+        if (a == 3 && mask3) {
+          for (var i = 0; i < line4.length; i++) {
+            if (station === line4[i]) {
+              //alert("在 " + 4 + " 号线, " + "第 " + (i + 1) + " 站");
+              return i + 1;
+            }
+          }
+        }
+        if (a == 4 && mask4) {
+          for (var i = 0; i < line10.length; i++) {
+            if (station === line10[i]) {
+              //alert("在 " + 10 + " 号线, " + "第 " + (i + 1) + " 站");
+              return i + 1;
+            }
+          }
+        }
+        if (a == 5 && mask5) {
+          for (var i = 0; i < lines1.length; i++) {
+            if (station === lines1[i]) {
+              //alert("在 " + "s1" + " 号线, " + "第 " + (i + 1) + " 站");
+              return i + 1;
+            }
+          }
+        }
+        if (a == 6 && mask6) {
+          for (var i = 0; i < lines3.length; i++) {
+            if (station === lines3[i]) {
+              //alert("在 " + "s3" + " 号线, " + "第 " + (i + 1) + " 站");
+              return i + 1;
+            }
+          }
+        }
+        if (a == 7 && mask7) {
+          for (var i = 0; i < lines7.length; i++) {
+            if (station === lines7[i]) {
+              //alert("在 " + "s7" + " 号线, " + "第 " + (i + 1) + " 站");
+              return i + 1;
+            }
+          }
+        }
+        if (a == 8 && mask8) {
+          for (var i = 0; i < lines8.length; i++) {
+            if (station === lines8[i]) {
+              //alert("在 " + "s8" + " 号线, " + "第 " + (i + 1) + " 站");
+              return i + 1;
+            }
+          }
+        }
+        if (a == 9 && mask9) {
+          for (var i = 0; i < lines9.length; i++) {
+            if (station === lines9[i]) {
+              //alert("在 " + "s9" + " 号线, " + "第 " + (i + 1) + " 站");
+              return i + 1;
+            }
+          }
+        }
+      }
+    }
+
+    //标记站点，计算换乘站之间的站点个数
+    function chargemask(maskstation) {
+      switch (maskstation) {
+        case "1":
+          mask0 = true;
+          mask1 = false;
+          mask2 = false;
+          mask3 = false;
+          mask4 = false;
+          mask5 = false;
+          mask6 = false;
+          mask7 = false;
+          mask8 = false;
+          mask9 = false;
+          break;
+        case "2":
+          mask0 = false;
+          mask1 = true;
+          mask2 = false;
+          mask3 = false;
+          mask4 = false;
+          mask5 = false;
+          mask6 = false;
+          mask7 = false;
+          mask8 = false;
+          mask9 = false;
+          break;
+        case "3":
+          mask0 = false;
+          mask1 = false;
+          mask2 = true;
+          mask3 = false;
+          mask4 = false;
+          mask5 = false;
+          mask6 = false;
+          mask7 = false;
+          mask8 = false;
+          mask9 = false;
+          break;
+        case "4":
+          mask0 = false;
+          mask1 = false;
+          mask2 = false;
+          mask3 = true;
+          mask4 = false;
+          mask5 = false;
+          mask6 = false;
+          mask7 = false;
+          mask8 = false;
+          mask9 = false;
+          break;
+        case "10":
+          mask0 = false;
+          mask1 = false;
+          mask2 = false;
+          mask3 = false;
+          mask4 = true;
+          mask5 = false;
+          mask6 = false;
+          mask7 = false;
+          mask8 = false;
+          mask9 = false;
+          break;
+        case "s1":
+          mask0 = false;
+          mask1 = false;
+          mask2 = false;
+          mask3 = false;
+          mask4 = false;
+          mask5 = true;
+          mask6 = false;
+          mask7 = false;
+          mask8 = false;
+          mask9 = false;
+          break;
+        case "s3":
+          mask0 = false;
+          mask1 = false;
+          mask2 = false;
+          mask3 = false;
+          mask4 = false;
+          mask5 = false;
+          mask6 = true;
+          mask7 = false;
+          mask8 = false;
+          mask9 = false;
+          break;
+        case "s7":
+          mask0 = false;
+          mask1 = false;
+          mask2 = false;
+          mask3 = false;
+          mask4 = false;
+          mask5 = false;
+          mask6 = false;
+          mask7 = true;
+          mask8 = false;
+          mask9 = false;
+          break;
+        case "s8":
+          mask0 = false;
+          mask1 = false;
+          mask2 = false;
+          mask3 = false;
+          mask4 = false;
+          mask5 = false;
+          mask6 = false;
+          mask7 = false;
+          mask8 = true;
+          mask9 = false;
+          break;
+        case "s9":
+          mask0 = false;
+          mask1 = false;
+          mask2 = false;
+          mask3 = false;
+          mask4 = false;
+          mask5 = false;
+          mask6 = false;
+          mask7 = false;
+          mask8 = false;
+          mask9 = true;
+          break;
+      }
+    }
+  </script>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <script
+      type="text/javascript"
+      src="http://api.map.baidu.com/api?type=subway&v=1.0&ak=SqhA9Kraop2ml4LL1qNOzuzCmV5oP9WU"
+    ></script>
+    <style type="text/css">
+      * {
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+  </body>
+  <script type="text/javascript">
+    var subwayCityName = "南京";
+    var list = BMapSub.SubwayCitiesList;
+    var subwaycity = null;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].name === subwayCityName) {
+        subwaycity = list[i];
+        break;
+      }
+    }
+    var subway = new BMapSub.Subway("map", subwaycity.citycode);
+    subway.setZoom(0.3);
+    var zoomControl = new BMapSub.ZoomControl({
+      anchor: BMAPSUB_ANCHOR_BOTTOM_RIGHT,
+      offset: new BMapSub.Size(30, 50),
+    });
+    subway.addControl(zoomControl);
+  </script>
+</html>
